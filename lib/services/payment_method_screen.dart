@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'payment_screen.dart';
 
 class PaymentMethodScreen extends StatelessWidget {
@@ -18,42 +19,110 @@ class PaymentMethodScreen extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const Text(
+              'Complete your booking securely',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Choose how you want to pay for this service.',
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
             const SizedBox(height: 20),
-
-            // 🔵 ONLINE PAYMENT
             Card(
-              child: ListTile(
-                leading: const Icon(Icons.payment),
-                title: const Text("Online Payment"),
-                subtitle: const Text("Pay now using card/UPI"),
-                onTap: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          PaymentScreen(bookingId: bookingId, amount: amount),
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.shield_outlined),
+                        SizedBox(width: 10),
+                        Text(
+                          'Online Payment',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                  );
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Instant confirmation with secure demo checkout.',
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PaymentScreen(
+                                bookingId: bookingId,
+                                amount: amount,
+                                paymentMethod: 'online',
+                              ),
+                            ),
+                          );
 
-                  if (result == true) {
-                    Navigator.pop(context, true);
-                  }
-                },
+                          if (result == true && context.mounted) {
+                            Navigator.pop(context, {
+                              'payment_method': 'online',
+                              'payment_status': 'paid',
+                            });
+                          }
+                        },
+                        child: const Text('Pay Online'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            // 🟢 OFFLINE PAYMENT
+            const SizedBox(height: 18),
             Card(
-              child: ListTile(
-                leading: const Icon(Icons.money),
-                title: const Text("Pay at Service"),
-                subtitle: const Text("Pay after service completion"),
-                onTap: () {
-                  Navigator.pop(context, true);
-                },
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.payments_outlined),
+                        SizedBox(width: 10),
+                        Text(
+                          'Pay At Service',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Reserve now and pay directly to the provider later.',
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.pop(context, {
+                            'payment_method': 'cash',
+                            'payment_status': 'unpaid',
+                          });
+                        },
+                        child: const Text('Continue With Pay At Service'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

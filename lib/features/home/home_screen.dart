@@ -1,8 +1,15 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:multiservice_frontend/services/service_list_screen.dart';
+import 'package:multiservice_frontend/features/auth/login_screen.dart';
+import 'package:multiservice_frontend/features/chatbot/chatbot_screen.dart';
+import 'package:multiservice_frontend/features/notifications/notifications_screen.dart';
+import 'package:multiservice_frontend/features/profile/profile_screen.dart';
+import 'package:multiservice_frontend/features/settings/server_settings_screen.dart';
+import 'package:multiservice_frontend/services/api_service.dart';
 import 'package:multiservice_frontend/services/booking_history_screen.dart';
+import 'package:multiservice_frontend/services/service_list_screen.dart';
+import 'package:multiservice_frontend/services/session_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,43 +23,56 @@ class _HomeScreenState extends State<HomeScreen> {
   List filteredCategories = [];
   bool isLoading = true;
   String selectedLocation = "Hyderabad";
+  String username = "User";
   TextEditingController searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
+    loadCurrentUser();
     fetchCategories();
   }
 
+  Future<void> loadCurrentUser() async {
+    final currentUser = await SessionService.getCurrentUser();
+    if (currentUser == null || !mounted) return;
+
+    setState(() {
+      username = currentUser['username'] ?? 'User';
+    });
+  }
+
+  Future<void> logout() async {
+    await SessionService.clearSession();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
+
   Future<void> fetchCategories() async {
+    setState(() {
+      isLoading = true;
+    });
+
     try {
-      print("=== API CALL START ===");
-
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/api/services/categories/'),
-      );
-
-      print("STATUS: ${response.statusCode}");
-      print("BODY: ${response.body}");
+      final response = await ApiService.get('/api/services/categories/');
 
       if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
         setState(() {
-          final data = jsonDecode(response.body);
-
-          setState(() {
-            allCategories = data;
-            filteredCategories = data;
-            isLoading = false;
-          });
+          allCategories = data;
+          filteredCategories = data;
           isLoading = false;
         });
       } else {
-        print("API FAILED");
         setState(() {
           isLoading = false;
         });
       }
-    } catch (e) {
-      print("ERROR OCCURRED: $e");
+    } catch (_) {
       setState(() {
         isLoading = false;
       });
@@ -63,19 +83,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final lowerQuery = query.toLowerCase();
 
     final results = allCategories.where((category) {
-      // ✅ Check category name
       final categoryName = category['name'].toString().toLowerCase();
       if (categoryName.contains(lowerQuery)) {
         return true;
       }
 
-      // ✅ Check inside services
       final services = category['services'] as List;
-
       for (var service in services) {
         final serviceName = service['name'].toString().toLowerCase();
         if (serviceName.contains(lowerQuery)) {
-          return true; // 🔥 MATCH FOUND INSIDE SERVICE
+          return true;
         }
       }
 
@@ -88,12 +105,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
-        title: const Text("Multi Service App"),
+        title: Text("Welcome, $username"),
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
@@ -106,9 +128,59 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.smart_toy_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ChatbotScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_none),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              );
+            },
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'profile') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
+              }
+              if (value == 'server') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ServerSettingsScreen(),
+                  ),
+                ).then((_) => fetchCategories());
+              }
+              if (value == 'logout') {
+                logout();
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'profile', child: Text('My Profile')),
+              PopupMenuItem(
+                value: 'server',
+                child: Text('Server Settings'),
+              ),
+              PopupMenuItem(value: 'logout', child: Text('Logout')),
+            ],
+          ),
         ],
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: isLoading
@@ -120,8 +192,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     "What are you looking for?",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Book trusted providers, manage appointments, and keep track of your upcoming services.",
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
                   const SizedBox(height: 12),
-
                   TextField(
                     decoration: InputDecoration(
                       hintText:
@@ -153,7 +229,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  // 🔥 ADD THIS SEARCH BAR
                   TextField(
                     controller: searchController,
                     onChanged: filterCategories,
@@ -169,89 +244,116 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
                   Expanded(
-                    child: GridView.builder(
-                      itemCount: filteredCategories.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 0.9,
-                          ),
-                      itemBuilder: (context, index) {
-                        final category = filteredCategories[index];
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ServiceListScreen(
-                                  categoryName: category['name'],
-                                  services: category['services'],
-                                  location: selectedLocation,
-                                ),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: const [
-                                BoxShadow(color: Colors.black12, blurRadius: 6),
-                              ],
-                            ),
-                            padding: const EdgeInsets.all(10),
+                    child: filteredCategories.isEmpty
+                        ? Center(
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                // 🔥 IMAGE BOX
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    height: 80,
-                                    width: 80,
-                                    color: Colors.grey.shade100,
-                                    child: Image.network(
-                                      category['icon'] ?? '',
-                                      fit: BoxFit
-                                          .contain, // 🔥 IMPORTANT (no stretch)
-
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                            return const Icon(
-                                              Icons.home_repair_service,
-                                              size: 40,
-                                            );
-                                          },
-                                    ),
+                                Icon(
+                                  Icons.search_off_outlined,
+                                  size: 48,
+                                  color: Colors.grey.shade500,
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'No matching services found',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-
-                                const SizedBox(height: 12),
-
-                                // 🔥 TEXT
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                  ),
-                                  child: Text(
-                                    category['name'],
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Try a different keyword or location.',
+                                  style: TextStyle(color: Colors.grey.shade700),
                                 ),
                               ],
                             ),
+                          )
+                        : GridView.builder(
+                            itemCount: filteredCategories.length,
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                  childAspectRatio: 0.68,
+                                ),
+                            itemBuilder: (context, index) {
+                              final category = filteredCategories[index];
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ServiceListScreen(
+                                        categoryName: category['name'],
+                                        services: category['services'],
+                                        location: selectedLocation,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.all(10),
+                                  child: Column(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Container(
+                                          height: 80,
+                                          width: 80,
+                                          color: Colors.grey.shade100,
+                                          child: Image.network(
+                                            category['icon'] ?? '',
+                                            fit: BoxFit.contain,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                                  return const Icon(
+                                                    Icons.home_repair_service,
+                                                    size: 40,
+                                                  );
+                                                },
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              category['name'],
+                                              textAlign: TextAlign.center,
+                                              maxLines: 3,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
                   ),
                 ],
               ),

@@ -27,8 +27,7 @@ class ServiceListScreen extends StatelessWidget {
             child: ListTile(
               title: Text(service['name']),
               subtitle: Text(service['description']),
-              trailing: Text("₹${service['base_price']}"),
-
+              trailing: Text("Rs ${service['base_price']}"),
               onTap: () {
                 Navigator.push(
                   context,
@@ -36,7 +35,7 @@ class ServiceListScreen extends StatelessWidget {
                     builder: (context) => ProviderListScreen(
                       serviceId: service['id'],
                       serviceName: service['name'],
-                      location: location, // ✅ CORRECT
+                      location: location,
                     ),
                   ),
                 );
