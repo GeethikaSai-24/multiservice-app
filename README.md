@@ -68,6 +68,3 @@ Before running full flows, make sure:
 - Online payment is not fully integrated with backend payment processing.
 - Additional environment-based configuration would improve deployment readiness.
 
-## Resume Summary
-
-A full-stack service booking platform frontend built with Flutter, focused on authentication, provider discovery, slot booking, reviews, reminders, and frontend-backend API integration.
